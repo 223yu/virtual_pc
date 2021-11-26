@@ -24,6 +24,15 @@ class CPU
       # 命令の読み出し（フェッチ）
       ir = memory.send("m#{pr}")
       self.pr += 1
+
+      # 実行する命令を表示する
+      if ir[2].instance_of?(Array)
+        puts "#{ir[0]} #{ir[1]} #{ir[2].join(',')}"
+      elsif ir[2].nil?
+        puts "#{ir[0]} #{ir[1]}"
+      else
+        puts "#{ir[0]} #{ir[1]} #{ir[2]}"
+      end
   
       # オペコードの解読
       case ir[1]
@@ -119,6 +128,8 @@ class CPU
       when 'RPOP' then
         # スタックの内容をレジスタに復帰する
       end
+      
+      self.observe_register
     end
   end
 
@@ -133,6 +144,13 @@ class CPU
         end
       end
     end
+  end
+
+  # レジスタの状況を表示する
+  def observe_register
+    puts "PR:#{self.pr}, SP:#{self.sp}, FR[ZF,SF,OF]:#{self.fr}"
+    puts "gr0:#{self.gr0}, gr1:#{self.gr1}, gr2:#{self.gr2}, gr3:#{self.gr3}"
+    puts "-------------------------------------------------------"
   end
 
   # 演算部
@@ -209,7 +227,7 @@ class CPU
       end
     end
 
-    # ADDA
+    # ADDA(ADD Arithmetic)
     def adda(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -232,7 +250,7 @@ class CPU
       end
     end
 
-    # ADDL
+    # ADDL(ADD Logical)
     def addl(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -255,7 +273,7 @@ class CPU
       end
     end
 
-    # SUBA
+    # SUBA(SUBtract Arithmetic)
     def suba(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -278,7 +296,7 @@ class CPU
       end
     end
 
-    # SUBL
+    # SUBL(SUBtract Logical)
     def subl(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -370,7 +388,7 @@ class CPU
       end
     end
 
-    # CPA
+    # CPA(ComPare Arithmetic)
     def cpa(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -390,7 +408,7 @@ class CPU
       end
     end
 
-    # CPL
+    # CPL(ComPare Logical)
     def cpl(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -410,7 +428,7 @@ class CPU
       end
     end
 
-    # SLA
+    # SLA(Shift Left Arithmetic)
     def sla(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -423,12 +441,12 @@ class CPU
       end
     end
 
-    # SLL
+    # SLL(Shift Left Logical)
     def sll(operand)
       sla(operand)
     end
 
-    # SRA
+    # SRA(Shift Right Arithmetic)
     def sra(operand)
       # オペランドが[GR,即値,GR]の場合
       if operand.length == 3
@@ -441,17 +459,17 @@ class CPU
       end
     end
 
-    # SRL
+    # SRL(Shift Right Logical)
     def srl(operand)
       sra(operand)
     end
 
-    # NOP
+    # NOP(No OPeration)
     def nop
       p "何もしませんでした。"
     end
 
-    # JUMP
+    # JUMP(unconditional JUMP)
     def jump(operand, memory)
       # オペランドが[ラベル]の場合
       if operand.length == 1
@@ -469,35 +487,35 @@ class CPU
       end
     end
 
-    # JPL
+    # JPL(Jump on PLus)
     def jpl(operand, memory)
       if self.fr[0] == 0 && self.fr[1] == 0
         jump(operand, memory)
       end
     end
 
-    # JMI
+    # JMI(Jump on MInus)
     def jmi(operand, memory)
       if self.fr[1] == 1
         jump(operand, memory)
       end
     end
 
-    # JNZ
+    # JNZ(Jump on Non Zero)
     def jnz(operand, memory)
       if self.fr[0] == 0
         jump(operand, memory)
       end
     end
 
-    # JZE
+    # JZE(Jump on ZEro)
     def jze(operand, memory)
       if self.fr[0] == 1
         jump(operand, memory)
       end
     end
 
-    # JOV
+    # JOV(Jump on OVerflow)
     def jov(operand, memory)
       if self.fr[2] == 1
         jump(operand, memory)
@@ -510,13 +528,13 @@ class CPU
       jump(operand, memory)
     end
 
-    # RET
+    # RET(RETurn from subroutine)
     def ret(memory)
       self.pr = memory.send("m#{self.sp}")[0].to_i
       self.sp += 1
     end
 
-    # SVC
+    # SVC(Super Visor Call)
     def svc
       # ブラックボックス
     end
@@ -532,6 +550,10 @@ class CPU
 
     # FRの更新
     def update_fr(result, pattern)
+      # FR初期化
+      self.fr[0] = 0
+      self.fr[1] = 0
+      self.fr[2] = 0
       # サインフラグ
       if result < 0
         self.fr[1] = 1
@@ -639,6 +661,11 @@ class CPU
 
     # 算術論理比較
     def arithmetic_logical_comparison(array,pattern)
+      # FR初期化
+      self.fr[0] = 0
+      self.fr[1] = 0
+      self.fr[2] = 0
+      
       array.each_with_index do |a, i|
         a = a.to_i
         if pattern == 'arithmetic' && a > 32767
